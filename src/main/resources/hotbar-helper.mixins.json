@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "qoby.hotbar_helper.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"PlayerDropMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
