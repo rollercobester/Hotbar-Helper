@@ -10,6 +10,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+<<<<<<< HEAD
+=======
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.item.ProjectileItem;
+import net.minecraft.world.InteractionResult;
+>>>>>>> 9a1eb0e (v1.0)
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.client.Minecraft;
 
