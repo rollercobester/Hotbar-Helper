@@ -50,6 +50,12 @@ public final class HotbarRefillClient implements HotbarRefill.RefillHandler {
 
         if (bestSlot < 0) return false;
 
+        // Optimistically update client inventory so display is correct immediately.
+        // The server processes our SWAP packet but may not sync back in time (especially for size-1 stacks).
+        ItemStack toMove = inv.getItem(bestSlot).copy();
+        inv.setItem(emptySlot, toMove);
+        inv.setItem(bestSlot, ItemStack.EMPTY);
+
         int containerSlot = bestSlot < 9 ? CONTAINER_HOTBAR_START + bestSlot : bestSlot;
         var packet = new ServerboundContainerClickPacket(
                 menu.containerId,
