@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -32,7 +32,7 @@ public final class HotbarToolSwitch {
      * datapacks.
      */
     private static final TagKey<Block> SILK_TOUCH_BLOCKS = TagKey.create(Registries.BLOCK,
-            Identifier.fromNamespaceAndPath("hotbar_helper", "silk_touch_blocks"));
+            ResourceLocation.fromNamespaceAndPath("hotbar_helper", "silk_touch_blocks"));
 
     private static int storedSlotBeforeMining = -1;
     private static boolean wasAttackKeyDownLastTick;
@@ -56,7 +56,7 @@ public final class HotbarToolSwitch {
             if (bestSlot < 0)
                 return InteractionResult.PASS;
 
-            int currentSlot = player.getInventory().getSelectedSlot();
+            int currentSlot = player.getInventory().selected;
             if (bestSlot == currentSlot)
                 return InteractionResult.PASS;
 
@@ -73,7 +73,7 @@ public final class HotbarToolSwitch {
             if (player.level().isClientSide() && mc.getConnection() != null) {
                 if (storedSlotBeforeMining < 0)
                     storedSlotBeforeMining = currentSlot; // Only store on first switch
-                player.getInventory().setSelectedSlot(bestSlot); // Update client immediately so slot display matches
+                player.getInventory().selected = bestSlot; // Update client immediately so slot display matches
                 mc.getConnection().send(new ServerboundSetCarriedItemPacket(bestSlot));
             }
             return InteractionResult.PASS;
@@ -89,7 +89,7 @@ public final class HotbarToolSwitch {
 
             boolean attackKeyDown = client.options.keyAttack.isDown();
             if (storedSlotBeforeMining >= 0 && wasAttackKeyDownLastTick && !attackKeyDown) {
-                player.getInventory().setSelectedSlot(storedSlotBeforeMining); // Restore client slot
+                player.getInventory().selected = storedSlotBeforeMining; // Restore client slot
                 connection.send(new ServerboundSetCarriedItemPacket(storedSlotBeforeMining));
                 storedSlotBeforeMining = -1;
             }

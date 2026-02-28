@@ -1,7 +1,7 @@
 package qoby.hotbar_helper;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.HashedStack;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -10,10 +10,9 @@ import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
-
 /**
- * Client-side implementation of hotbar refill. Sends QUICK_MOVE packet to server.
+ * Client-side implementation of hotbar refill. Sends SWAP packet to server.
+ * Built for the MC version in gradle.properties – rebuild for each target version.
  */
 public final class HotbarRefillClient implements HotbarRefill.RefillHandler {
     private static final int HOTBAR_SIZE = 9;
@@ -29,7 +28,6 @@ public final class HotbarRefillClient implements HotbarRefill.RefillHandler {
 
         Inventory inv = player.getInventory();
 
-        // Find the biggest matching stack (main inv first, then other hotbar slots)
         int bestSlot = -1;
         int bestCount = 0;
 
@@ -51,25 +49,18 @@ public final class HotbarRefillClient implements HotbarRefill.RefillHandler {
         }
 
         if (bestSlot < 0) return false;
-        sendQuickMove(mc, menu, emptySlot, bestSlot, isContinuation);
-        return true;
-    }
 
-    private void sendQuickMove(Minecraft mc, InventoryMenu menu, int targetHotbarSlot, int sourceInventorySlot, boolean isContinuation) {
-        int containerSlot = sourceInventorySlot < HOTBAR_SIZE
-            ? CONTAINER_HOTBAR_START + sourceInventorySlot
-            : sourceInventorySlot;
-
-        // Always use SWAP - targets our specific slot. One refill per trigger, no multi-stack.
+        int containerSlot = bestSlot < 9 ? CONTAINER_HOTBAR_START + bestSlot : bestSlot;
         var packet = new ServerboundContainerClickPacket(
-            menu.containerId,
-            menu.getStateId(),
-            (short) containerSlot,
-            (byte) targetHotbarSlot,
-            ClickType.SWAP,
-            new Int2ObjectArrayMap<>(0),
-            HashedStack.EMPTY
+                menu.containerId,
+                menu.getStateId(),
+                containerSlot,
+                emptySlot,
+                ClickType.SWAP,
+                ItemStack.EMPTY,
+                new Int2ObjectArrayMap<ItemStack>(0)
         );
         mc.getConnection().send(packet);
+        return true;
     }
 }
