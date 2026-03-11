@@ -26,6 +26,7 @@ public class HotbarHelper implements ModInitializer {
 		EnchantBlockRegistry.register();
 		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN
 				.register((handler, sender, server) -> {
+					EnchantBlockRegistry.ensureBuilt(server);
 					var payload = new qoby.hotbar_helper.network.EnchantBlocksSyncPayload(
 							EnchantBlockRegistry.getSyncedFortuneBlocks(),
 							EnchantBlockRegistry.getSyncedSilkTouchBlocks());

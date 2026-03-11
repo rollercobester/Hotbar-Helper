@@ -95,6 +95,8 @@ public final class HotbarToolSwitch {
      * tool.
      */
     private static int findBestToolSlot(Player player, BlockState blockState) {
+        EnchantBlockRegistry.loadFromTagsIfEmpty(player.level().registryAccess());
+
         int bestSlot = -1;
         int bestScore = -1_000_000;
 

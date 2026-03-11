@@ -5,6 +5,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -64,7 +65,15 @@ public final class EnchantBlockRegistry {
     private static volatile List<ResourceLocation> syncedSilkTouchBlocks = List.of();
 
     public static void register() {
-        ServerWorldEvents.LOAD.register((server, level) -> rebuild(server));
+        ServerWorldEvents.LOAD.register((server, level) -> {
+            if (level.dimension() != Level.OVERWORLD) return;
+            rebuild(server);
+        });
+    }
+
+    /** Rebuilds block lists. Call before sending sync to ensure data is ready. */
+    public static void ensureBuilt(MinecraftServer server) {
+        rebuild(server);
     }
 
     /**
@@ -122,10 +131,11 @@ public final class EnchantBlockRegistry {
 
     /**
      * Applies synced block lists from the server. Called on client when packet
-     * is received.
+     * is received. If payload is empty, skip to avoid clearing valid data.
      */
     public static void applySyncedBlocks(net.minecraft.core.RegistryAccess registryAccess,
             List<ResourceLocation> fortuneIds, List<ResourceLocation> silkTouchIds) {
+        if (fortuneIds.isEmpty() && silkTouchIds.isEmpty()) return;
         var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
         FORTUNE_BLOCKS_SET.clear();
         SILK_TOUCH_BLOCKS_SET.clear();
@@ -137,8 +147,26 @@ public final class EnchantBlockRegistry {
             blockReg.getOptional(net.minecraft.resources.ResourceKey.create(Registries.BLOCK, id))
                     .ifPresent(SILK_TOUCH_BLOCKS_SET::add);
         }
-        LOGGER.debug("EnchantBlockRegistry: Applied {} fortune and {} silk touch blocks from server",
-                FORTUNE_BLOCKS_SET.size(), SILK_TOUCH_BLOCKS_SET.size());
+    }
+
+    /**
+     * Client-side fallback: load block lists from tags when sets are empty.
+     * Ensures fortune/silk-touch detection works before server sync arrives.
+     */
+    public static void loadFromTagsIfEmpty(net.minecraft.core.RegistryAccess registryAccess) {
+        if (!FORTUNE_BLOCKS_SET.isEmpty() && !SILK_TOUCH_BLOCKS_SET.isEmpty()) return;
+        var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
+        if (FORTUNE_BLOCKS_SET.isEmpty()) {
+            addBlocksFromTag(blockReg, FORTUNE_BLOCKS, FORTUNE_BLOCKS_SET);
+            addBlocksFromTag(blockReg, C_ORES, FORTUNE_BLOCKS_SET);
+        }
+        if (SILK_TOUCH_BLOCKS_SET.isEmpty()) {
+            addBlocksFromTag(blockReg, SILK_TOUCH_BLOCKS, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTag(blockReg, C_CLUSTERS, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTag(blockReg, C_GLASS_BLOCKS, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTag(blockReg, C_GLASS_PANES, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTag(blockReg, C_BUDDING_BLOCKS, SILK_TOUCH_BLOCKS_SET);
+        }
     }
 
     private static void addBlocksFromTag(net.minecraft.core.Registry<Block> blockReg, TagKey<Block> tag,
