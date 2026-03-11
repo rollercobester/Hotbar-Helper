@@ -106,6 +106,13 @@ public final class HotbarHelperEvents {
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // Clear pending refills when any screen is open - prevents desync if the
+            // player opens inventory and manually moves items before our refill fires
+            if (client.screen != null) {
+                pendingRefills.clear();
+                return;
+            }
+
             Player player = Minecraft.getInstance().player;
             if (player == null || !player.isAlive() || player.isRemoved())
                 return;
@@ -126,7 +133,7 @@ public final class HotbarHelperEvents {
                 var stack = player.getInventory().getItem(pr.slot);
                 if (!stack.isEmpty()) {
                     pr.ticksWaiting++;
-                    if (pr.ticksWaiting > 10)
+                    if (pr.ticksWaiting > 40)
                         it.remove();
                     continue;
                 }
