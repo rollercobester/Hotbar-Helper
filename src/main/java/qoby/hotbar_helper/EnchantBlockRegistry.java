@@ -70,7 +70,8 @@ public final class EnchantBlockRegistry {
 
     public static void register() {
         ServerWorldEvents.LOAD.register((server, level) -> {
-            if (level.dimension() != Level.OVERWORLD) return;
+            if (level.dimension() != Level.OVERWORLD)
+                return;
             rebuild(level);
         });
     }
@@ -78,7 +79,8 @@ public final class EnchantBlockRegistry {
     /** Rebuilds block lists. Call before sending sync to ensure data is ready. */
     public static void ensureBuilt(MinecraftServer server) {
         var overworld = server.getLevel(Level.OVERWORLD);
-        if (overworld != null) rebuild(overworld);
+        if (overworld != null)
+            rebuild(overworld);
     }
 
     /**
@@ -138,7 +140,8 @@ public final class EnchantBlockRegistry {
      */
     public static void applySyncedBlocks(net.minecraft.core.RegistryAccess registryAccess,
             List<ResourceLocation> fortuneIds, List<ResourceLocation> silkTouchIds) {
-        if (fortuneIds.isEmpty() && silkTouchIds.isEmpty()) return;
+        if (fortuneIds.isEmpty() && silkTouchIds.isEmpty())
+            return;
         var blockLookup = registryAccess.lookupOrThrow(Registries.BLOCK);
         FORTUNE_BLOCKS_SET.clear();
         SILK_TOUCH_BLOCKS_SET.clear();
@@ -146,7 +149,8 @@ public final class EnchantBlockRegistry {
             blockLookup.get(ResourceKey.create(Registries.BLOCK, id)).ifPresent(h -> FORTUNE_BLOCKS_SET.add(h.value()));
         }
         for (ResourceLocation id : silkTouchIds) {
-            blockLookup.get(ResourceKey.create(Registries.BLOCK, id)).ifPresent(h -> SILK_TOUCH_BLOCKS_SET.add(h.value()));
+            blockLookup.get(ResourceKey.create(Registries.BLOCK, id))
+                    .ifPresent(h -> SILK_TOUCH_BLOCKS_SET.add(h.value()));
         }
     }
 
@@ -155,7 +159,8 @@ public final class EnchantBlockRegistry {
      * Ensures fortune/silk-touch detection works before server sync arrives.
      */
     public static void loadFromTagsIfEmpty(net.minecraft.core.RegistryAccess registryAccess) {
-        if (!FORTUNE_BLOCKS_SET.isEmpty() && !SILK_TOUCH_BLOCKS_SET.isEmpty()) return;
+        if (!FORTUNE_BLOCKS_SET.isEmpty() && !SILK_TOUCH_BLOCKS_SET.isEmpty())
+            return;
         var blockLookup = registryAccess.lookupOrThrow(Registries.BLOCK);
         if (FORTUNE_BLOCKS_SET.isEmpty()) {
             addBlocksFromTag(blockLookup, FORTUNE_BLOCKS, FORTUNE_BLOCKS_SET);
@@ -171,12 +176,19 @@ public final class EnchantBlockRegistry {
     }
 
     private static void addBlocksFromTag(HolderLookup.RegistryLookup<Block> lookup, TagKey<Block> tag, Set<Block> out) {
-        lookup.get(tag).ifPresent(named -> { for (Holder<Block> h : named) out.add(h.value()); });
+        lookup.get(tag).ifPresent(named -> {
+            for (Holder<Block> h : named)
+                out.add(h.value());
+        });
     }
 
-    private static void addBlocksFromTagOptional(HolderLookup.RegistryLookup<Block> lookup, TagKey<Block> tag, Set<Block> out) {
+    private static void addBlocksFromTagOptional(HolderLookup.RegistryLookup<Block> lookup, TagKey<Block> tag,
+            Set<Block> out) {
         try {
-            lookup.get(tag).ifPresent(named -> { for (Holder<Block> h : named) out.add(h.value()); });
+            lookup.get(tag).ifPresent(named -> {
+                for (Holder<Block> h : named)
+                    out.add(h.value());
+            });
         } catch (Exception ignored) {
             // Tag may not exist (e.g. c:ores on vanilla)
         }

@@ -145,7 +145,8 @@ public final class HotbarToolSwitch {
         int score = 0;
         var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
 
-        // Fortune: for blocks that benefit (fortune_blocks tag - ores, wheat, grass, crops)
+        // Fortune: for blocks that benefit (fortune_blocks tag - ores, wheat, grass,
+        // crops)
         if (EnchantBlockRegistry.isFortuneBlock(blockState)) {
             Holder<Enchantment> fortune = enchantments.getOrThrow(Enchantments.FORTUNE);
             score += EnchantmentHelper.getItemEnchantmentLevel(fortune, stack) * 1000;

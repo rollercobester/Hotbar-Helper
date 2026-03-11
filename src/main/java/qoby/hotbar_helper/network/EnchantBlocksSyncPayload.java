@@ -15,20 +15,20 @@ import java.util.List;
  * block lists (from loot table analysis) to the client for multiplayer.
  */
 public record EnchantBlocksSyncPayload(List<ResourceLocation> fortuneBlocks, List<ResourceLocation> silkTouchBlocks)
-        implements CustomPacketPayload {
+                implements CustomPacketPayload {
 
-    public static final CustomPacketPayload.Type<EnchantBlocksSyncPayload> TYPE = new CustomPacketPayload.Type<>(
-            ResourceLocation.fromNamespaceAndPath(HotbarHelper.MOD_ID, "enchant_blocks_sync"));
+        public static final CustomPacketPayload.Type<EnchantBlocksSyncPayload> TYPE = new CustomPacketPayload.Type<>(
+                        ResourceLocation.fromNamespaceAndPath(HotbarHelper.MOD_ID, "enchant_blocks_sync"));
 
-    public static final StreamCodec<FriendlyByteBuf, EnchantBlocksSyncPayload> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.collection(ArrayList::new, ResourceLocation.STREAM_CODEC, 4096),
-            EnchantBlocksSyncPayload::fortuneBlocks,
-            ByteBufCodecs.collection(ArrayList::new, ResourceLocation.STREAM_CODEC, 4096),
-            EnchantBlocksSyncPayload::silkTouchBlocks,
-            EnchantBlocksSyncPayload::new);
+        public static final StreamCodec<FriendlyByteBuf, EnchantBlocksSyncPayload> STREAM_CODEC = StreamCodec.composite(
+                        ByteBufCodecs.collection(ArrayList::new, ResourceLocation.STREAM_CODEC, 4096),
+                        EnchantBlocksSyncPayload::fortuneBlocks,
+                        ByteBufCodecs.collection(ArrayList::new, ResourceLocation.STREAM_CODEC, 4096),
+                        EnchantBlocksSyncPayload::silkTouchBlocks,
+                        EnchantBlocksSyncPayload::new);
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+                return TYPE;
+        }
 }
