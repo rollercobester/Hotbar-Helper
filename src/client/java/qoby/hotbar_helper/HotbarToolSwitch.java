@@ -83,8 +83,10 @@ public final class HotbarToolSwitch {
 
             boolean attackKeyDown = client.options.keyAttack.isDown();
             if (storedSlotBeforeMining >= 0 && wasAttackKeyDownLastTick && !attackKeyDown) {
-                player.getInventory().setSelectedSlot(storedSlotBeforeMining); // Restore client slot
-                connection.send(new ServerboundSetCarriedItemPacket(storedSlotBeforeMining));
+                if (config.preserveSlotAfterMining) {
+                    player.getInventory().setSelectedSlot(storedSlotBeforeMining);
+                    connection.send(new ServerboundSetCarriedItemPacket(storedSlotBeforeMining));
+                }
                 storedSlotBeforeMining = -1;
             }
             wasAttackKeyDownLastTick = attackKeyDown;

@@ -4,6 +4,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.client.Minecraft;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -11,7 +14,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.client.Minecraft;
 
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -147,7 +149,9 @@ public final class HotbarHelperEvents {
                 if (!enabled)
                     continue;
 
-                HotbarRefill.tryRefill(player, pr.slot, pr.itemType, false);
+                if (HotbarRefill.tryRefill(player, pr.slot, pr.itemType, false) && pr.config.refillSound) {
+                    player.level().playSound(player, player.blockPosition(), SoundEvents.CHICKEN_EGG, SoundSource.PLAYERS, 0.5f, 1f);
+                }
             }
         });
     }

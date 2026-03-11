@@ -3,6 +3,7 @@ package qoby.hotbar_helper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Checkbox;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -27,9 +28,15 @@ public class HotbarHelperConfigScreen extends Screen {
     protected void init() {
         super.init();
 
-        int left = this.width / 2 - 155;
-        int y = 30;
-        int spacing = 25;
+        int left = this.width / 2 - 140;
+        int contentWidth = 280;
+        int y = 24;
+        int spacing = 18;
+        int spaceBelowLabel = 10;
+        int spaceAboveLabel = 14;
+
+        addRenderableWidget(new StringWidget(left, y, contentWidth, 9, Component.literal("Hotbar refill"), this.font));
+        y += spaceBelowLabel;
 
         addRenderableWidget(
                 Checkbox.builder(Component.literal("Refill on block place"), this.font)
@@ -56,10 +63,29 @@ public class HotbarHelperConfigScreen extends Screen {
         y += spacing;
 
         addRenderableWidget(
+                Checkbox.builder(Component.literal("Refill sound"), this.font)
+                        .pos(left, y)
+                        .selected(config.refillSound)
+                        .onValueChange((checkbox, value) -> config.refillSound = value)
+                        .build());
+        y += spacing + spaceAboveLabel;
+
+        addRenderableWidget(new StringWidget(left, y, contentWidth, 9, Component.literal("Tool switch"), this.font));
+        y += spaceBelowLabel;
+
+        addRenderableWidget(
                 Checkbox.builder(Component.literal("Auto tool switch when mining"), this.font)
                         .pos(left, y)
                         .selected(config.autoToolSwitch)
                         .onValueChange((checkbox, value) -> config.autoToolSwitch = value)
+                        .build());
+        y += spacing;
+
+        addRenderableWidget(
+                Checkbox.builder(Component.literal("Restore slot after mining"), this.font)
+                        .pos(left, y)
+                        .selected(config.preserveSlotAfterMining)
+                        .onValueChange((checkbox, value) -> config.preserveSlotAfterMining = value)
                         .build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
