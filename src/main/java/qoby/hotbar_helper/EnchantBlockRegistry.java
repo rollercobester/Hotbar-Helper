@@ -23,7 +23,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Server-side registry that builds merged sets of blocks benefiting from Fortune
+ * Server-side registry that builds merged sets of blocks benefiting from
+ * Fortune
  * and Silk Touch. Combines our datapack tags with optional convention tags
  * (#c:ores, #c:clusters, etc.) and with blocks detected from loot table
  * analysis.
@@ -37,7 +38,9 @@ public final class EnchantBlockRegistry {
     private static final TagKey<Block> SILK_TOUCH_BLOCKS = TagKey.create(Registries.BLOCK,
             ResourceLocation.fromNamespaceAndPath("hotbar_helper", "silk_touch_blocks"));
 
-    /** Optional tags from Fabric/mod conventions – if present, blocks are merged in. */
+    /**
+     * Optional tags from Fabric/mod conventions – if present, blocks are merged in.
+     */
     private static final TagKey<Block> C_ORES = TagKey.create(Registries.BLOCK,
             ResourceLocation.fromNamespaceAndPath("c", "ores"));
     private static final TagKey<Block> C_CLUSTERS = TagKey.create(Registries.BLOCK,
@@ -49,7 +52,10 @@ public final class EnchantBlockRegistry {
     private static final TagKey<Block> C_BUDDING_BLOCKS = TagKey.create(Registries.BLOCK,
             ResourceLocation.fromNamespaceAndPath("c", "budding_blocks"));
 
-    /** Merged block sets: our tags + optional convention tags + loot-detected blocks. */
+    /**
+     * Merged block sets: our tags + optional convention tags + loot-detected
+     * blocks.
+     */
     private static final Set<Block> FORTUNE_BLOCKS_SET = ConcurrentHashMap.newKeySet();
     private static final Set<Block> SILK_TOUCH_BLOCKS_SET = ConcurrentHashMap.newKeySet();
 
@@ -150,9 +156,11 @@ public final class EnchantBlockRegistry {
 
         ItemStack plainTool = new ItemStack(Items.DIAMOND_PICKAXE);
         ItemStack fortuneTool = new ItemStack(Items.DIAMOND_PICKAXE);
-        fortuneTool.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE), 3);
+        fortuneTool.enchant(
+                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE), 3);
         ItemStack silkTouchTool = new ItemStack(Items.DIAMOND_PICKAXE);
-        silkTouchTool.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH), 1);
+        silkTouchTool.enchant(
+                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH), 1);
 
         var blockPos = level.getSharedSpawnPos();
 
@@ -160,10 +168,12 @@ public final class EnchantBlockRegistry {
             Block block = entry.getValue();
             BlockState state = block.defaultBlockState();
 
-            if (state.isAir()) continue;
+            if (state.isAir())
+                continue;
 
             var lootKey = block.getLootTable();
-            if (lootKey == null || lootKey.location().getPath().equals("empty")) continue;
+            if (lootKey == null || lootKey.location().getPath().equals("empty"))
+                continue;
 
             try {
                 List<ItemStack> plain = getDrops(level, state, blockPos, plainTool);
@@ -196,25 +206,30 @@ public final class EnchantBlockRegistry {
     }
 
     private static boolean dropsDiffer(List<ItemStack> a, List<ItemStack> b) {
-        if (a.size() != b.size()) return true;
+        if (a.size() != b.size())
+            return true;
         int totalA = a.stream().mapToInt(ItemStack::getCount).sum();
         int totalB = b.stream().mapToInt(ItemStack::getCount).sum();
-        if (totalA != totalB) return true;
+        if (totalA != totalB)
+            return true;
         for (int i = 0; i < a.size(); i++) {
-            if (!ItemStack.isSameItemSameComponents(a.get(i), b.get(i))) return true;
+            if (!ItemStack.isSameItemSameComponents(a.get(i), b.get(i)))
+                return true;
         }
         return false;
     }
 
     public static boolean isFortuneBlock(BlockState state) {
         Block block = state.getBlock();
-        if (FORTUNE_BLOCKS_SET.contains(block)) return true;
+        if (FORTUNE_BLOCKS_SET.contains(block))
+            return true;
         return state.is(FORTUNE_BLOCKS) || state.is(C_ORES);
     }
 
     public static boolean isSilkTouchBlock(BlockState state) {
         Block block = state.getBlock();
-        if (SILK_TOUCH_BLOCKS_SET.contains(block)) return true;
+        if (SILK_TOUCH_BLOCKS_SET.contains(block))
+            return true;
         return state.is(SILK_TOUCH_BLOCKS) || state.is(C_CLUSTERS) || state.is(C_GLASS_BLOCKS)
                 || state.is(C_GLASS_PANES) || state.is(C_BUDDING_BLOCKS);
     }
