@@ -20,7 +20,9 @@ public class HotbarHelperConfig {
     public boolean refillOnPlace = true;
     public boolean refillOnDrop = true;
     public boolean refillOnUse = true;
+    public boolean refillSound = true;
     public boolean autoToolSwitch = true;
+    public boolean preserveSlotAfterMining = true;
 
     public static HotbarHelperConfig load(Path configDir) {
         Path configPath = configDir.resolve(CONFIG_FILE_NAME);
@@ -43,6 +45,8 @@ public class HotbarHelperConfig {
             else if (obj.has("refillOnThrow")) config.refillOnUse = obj.get("refillOnThrow").getAsBoolean();
             else if (obj.has("replaceOnThrow")) config.refillOnUse = obj.get("replaceOnThrow").getAsBoolean();
             if (obj.has("autoToolSwitch")) config.autoToolSwitch = obj.get("autoToolSwitch").getAsBoolean();
+            if (obj.has("refillSound")) config.refillSound = obj.get("refillSound").getAsBoolean();
+            if (obj.has("preserveSlotAfterMining")) config.preserveSlotAfterMining = obj.get("preserveSlotAfterMining").getAsBoolean();
             return config;
         } catch (IOException e) {
             HotbarHelper.LOGGER.warn("Failed to load config, using defaults", e);
@@ -58,7 +62,9 @@ public class HotbarHelperConfig {
             obj.addProperty("refillOnPlace", refillOnPlace);
             obj.addProperty("refillOnDrop", refillOnDrop);
             obj.addProperty("refillOnUse", refillOnUse);
+            obj.addProperty("refillSound", refillSound);
             obj.addProperty("autoToolSwitch", autoToolSwitch);
+            obj.addProperty("preserveSlotAfterMining", preserveSlotAfterMining);
             Files.writeString(configPath, GSON.toJson(obj));
         } catch (IOException e) {
             HotbarHelper.LOGGER.error("Failed to save config", e);
