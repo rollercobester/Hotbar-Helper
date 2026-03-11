@@ -210,7 +210,7 @@ public final class EnchantBlockRegistry {
         silkTouchTool.enchant(
                 level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH), 1);
 
-        var blockPos = level.getSharedSpawnPos();
+        var blockPos = net.minecraft.core.BlockPos.ZERO;
 
         for (Holder.Reference<Block> holder : blockLookup.listElements().toList()) {
             Block block = holder.value();
