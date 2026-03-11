@@ -45,7 +45,7 @@ public final class HotbarToolSwitch {
             if (bestSlot < 0)
                 return InteractionResult.PASS;
 
-            int currentSlot = player.getInventory().selected;
+            int currentSlot = player.getInventory().getSelectedSlot();
             if (bestSlot == currentSlot)
                 return InteractionResult.PASS;
 
@@ -67,7 +67,7 @@ public final class HotbarToolSwitch {
             if (player.level().isClientSide() && mc.getConnection() != null) {
                 if (storedSlotBeforeMining < 0)
                     storedSlotBeforeMining = currentSlot; // Only store on first switch
-                player.getInventory().selected = bestSlot; // Update client immediately so slot display matches
+                player.getInventory().setSelectedSlot(bestSlot); // Update client immediately so slot display matches
                 mc.getConnection().send(new ServerboundSetCarriedItemPacket(bestSlot));
             }
             return InteractionResult.PASS;
@@ -83,7 +83,7 @@ public final class HotbarToolSwitch {
 
             boolean attackKeyDown = client.options.keyAttack.isDown();
             if (storedSlotBeforeMining >= 0 && wasAttackKeyDownLastTick && !attackKeyDown) {
-                player.getInventory().selected = storedSlotBeforeMining; // Restore client slot
+                player.getInventory().setSelectedSlot(storedSlotBeforeMining); // Restore client slot
                 connection.send(new ServerboundSetCarriedItemPacket(storedSlotBeforeMining));
                 storedSlotBeforeMining = -1;
             }

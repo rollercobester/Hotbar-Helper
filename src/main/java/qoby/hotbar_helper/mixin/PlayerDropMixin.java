@@ -43,7 +43,7 @@ public abstract class PlayerDropMixin {
             if (droppedStack.getCount() > mainHand.getCount()) return;
 
             Item itemType = droppedStack.getItem();
-            int slot = self.getInventory().selected;
+            int slot = self.getInventory().getSelectedSlot();
             if (slot < 0 || slot >= 9) return;
 
             HotbarHelper.scheduleRefill(slot, itemType, HotbarRefillCause.DROP, config);

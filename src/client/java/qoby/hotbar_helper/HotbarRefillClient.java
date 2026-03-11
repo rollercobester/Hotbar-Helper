@@ -2,6 +2,7 @@ package qoby.hotbar_helper;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.HashedStack;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -56,15 +57,15 @@ public final class HotbarRefillClient implements HotbarRefill.RefillHandler {
         inv.setItem(emptySlot, toMove);
         inv.setItem(bestSlot, ItemStack.EMPTY);
 
-        int containerSlot = bestSlot < 9 ? CONTAINER_HOTBAR_START + bestSlot : bestSlot;
+        short containerSlot = (short) (bestSlot < 9 ? CONTAINER_HOTBAR_START + bestSlot : bestSlot);
         var packet = new ServerboundContainerClickPacket(
                 menu.containerId,
                 menu.getStateId(),
                 containerSlot,
-                emptySlot,
+                (byte) emptySlot,
                 ClickType.SWAP,
-                ItemStack.EMPTY,
-                new Int2ObjectArrayMap<ItemStack>(0)
+                new Int2ObjectArrayMap<HashedStack>(0),
+                HashedStack.EMPTY
         );
         mc.getConnection().send(packet);
         return true;
