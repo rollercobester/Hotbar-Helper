@@ -40,14 +40,6 @@ public class HotbarHelperConfigScreen extends Screen {
         y += spacing;
 
         addRenderableWidget(
-                Checkbox.builder(Component.literal("Refill on eat"), this.font)
-                        .pos(left, y)
-                        .selected(config.refillOnEat)
-                        .onValueChange((checkbox, value) -> config.refillOnEat = value)
-                        .build());
-        y += spacing;
-
-        addRenderableWidget(
                 Checkbox.builder(Component.literal("Refill on drop"), this.font)
                         .pos(left, y)
                         .selected(config.refillOnDrop)
@@ -56,10 +48,10 @@ public class HotbarHelperConfigScreen extends Screen {
         y += spacing;
 
         addRenderableWidget(
-                Checkbox.builder(Component.literal("Refill on throw (projectiles)"), this.font)
+                Checkbox.builder(Component.literal("Refill on use"), this.font)
                         .pos(left, y)
-                        .selected(config.refillOnThrow)
-                        .onValueChange((checkbox, value) -> config.refillOnThrow = value)
+                        .selected(config.refillOnUse)
+                        .onValueChange((checkbox, value) -> config.refillOnUse = value)
                         .build());
         y += spacing;
 
