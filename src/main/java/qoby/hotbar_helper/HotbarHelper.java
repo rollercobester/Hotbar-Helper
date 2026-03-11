@@ -1,6 +1,7 @@
 package qoby.hotbar_helper;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.world.item.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,16 @@ public class HotbarHelper implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		LOGGER.info("Hotbar Helper initialized");
+		PayloadTypeRegistry.playS2C().register(qoby.hotbar_helper.network.EnchantBlocksSyncPayload.TYPE,
+				qoby.hotbar_helper.network.EnchantBlocksSyncPayload.STREAM_CODEC);
+		EnchantBlockRegistry.register();
+		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN
+				.register((handler, sender, server) -> {
+					var payload = new qoby.hotbar_helper.network.EnchantBlocksSyncPayload(
+							EnchantBlockRegistry.getSyncedFortuneBlocks(),
+							EnchantBlockRegistry.getSyncedSilkTouchBlocks());
+					sender.sendPacket(payload);
+				});
 	}
 
 	public static HotbarHelperConfig getConfig() {

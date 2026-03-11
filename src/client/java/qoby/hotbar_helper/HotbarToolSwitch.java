@@ -2,11 +2,8 @@ package qoby.hotbar_helper;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
-import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -16,7 +13,6 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 
@@ -26,13 +22,6 @@ import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
  * Once per mouse click - does not react to manual tool changes during mining.
  */
 public final class HotbarToolSwitch {
-
-    /**
-     * Tag for blocks that benefit from Silk Touch. Mods can add blocks via
-     * datapacks.
-     */
-    private static final TagKey<Block> SILK_TOUCH_BLOCKS = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("hotbar_helper", "silk_touch_blocks"));
 
     private static int storedSlotBeforeMining = -1;
     private static boolean wasAttackKeyDownLastTick;
@@ -60,13 +49,17 @@ public final class HotbarToolSwitch {
             if (bestSlot == currentSlot)
                 return InteractionResult.PASS;
 
-            // Check tie-breaking: if current item has same score as best, don't swap
+            // Tie-breaking: when scores equal, prefer switching to empty/non-damageable to save durability
             var currentStack = player.getInventory().getItem(currentSlot);
             var bestStack = player.getInventory().getItem(bestSlot);
             int currentScore = scoreTool(currentStack, state, player.level());
             int bestScore = scoreTool(bestStack, state, player.level());
             if (currentScore == bestScore) {
-                return InteractionResult.PASS;
+                // Only stay if switching wouldn't save durability
+                boolean bestSavesDurability = bestStack.isEmpty() || !bestStack.isDamageableItem();
+                boolean currentConsumesDurability = currentStack.isDamageableItem();
+                if (!(bestSavesDurability && currentConsumesDurability))
+                    return InteractionResult.PASS;
             }
 
             var mc = Minecraft.getInstance();
@@ -140,7 +133,7 @@ public final class HotbarToolSwitch {
         if (toolTypeScore <= 0) {
             // Silk touch on silk-touch block with wrong tool: score above default, below
             // correct tool
-            if (blockState.is(SILK_TOUCH_BLOCKS)) {
+            if (EnchantBlockRegistry.isSilkTouchBlock(blockState)) {
                 var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
                 int silkTouch = EnchantmentHelper
                         .getItemEnchantmentLevel(enchantments.getOrThrow(Enchantments.SILK_TOUCH), stack);
@@ -149,12 +142,29 @@ public final class HotbarToolSwitch {
                     return enchantScore + 1; // Beats default (0), below correct tool (toolTypeScore * 10000)
                 }
             }
-            // Tool doesn't help and block doesn't need enchant
-            if (!blockState.is(ConventionalBlockTags.ORES) && !blockState.is(SILK_TOUCH_BLOCKS)) {
+            // Fortune on fortune block (e.g. crops) with instant-break: getDestroySpeed <= 1 so
+            // toolTypeScore is 0, but fortune hoe should still beat empty hand
+            if (EnchantBlockRegistry.isFortuneBlock(blockState)) {
+                var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+                int fortune = EnchantmentHelper
+                        .getItemEnchantmentLevel(enchantments.getOrThrow(Enchantments.FORTUNE), stack);
+                if (fortune > 0) {
+                    int enchantScore = getEnchantScore(stack, blockState, level);
+                    return enchantScore + 1; // Beats default (0)
+                }
+            }
+            // Tool doesn't help: block needs no enchant, or needs enchant we don't have
+            boolean blockNeedsFortune = EnchantBlockRegistry.isFortuneBlock(blockState);
+            boolean blockNeedsSilkTouch = EnchantBlockRegistry.isSilkTouchBlock(blockState);
+            boolean hasRelevantEnchant = (blockNeedsFortune && EnchantmentHelper.getItemEnchantmentLevel(
+                    level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE), stack) > 0)
+                    || (blockNeedsSilkTouch && EnchantmentHelper.getItemEnchantmentLevel(
+                    level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH), stack) > 0);
+            if ((!blockNeedsFortune && !blockNeedsSilkTouch) || !hasRelevantEnchant) {
                 if (stack.isDamageableItem()) {
                     return -2; // Deprioritize damageable to preserve durability
                 }
-                return 0; // Non-tools (e.g. dirt block) equal to empty - no reason to switch
+                return 0;
             }
             return 0;
         }
@@ -174,15 +184,14 @@ public final class HotbarToolSwitch {
         int score = 0;
         var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
 
-        // Fortune: only for ores (ConventionalBlockTags.ORES - mods add their ores
-        // here)
-        if (blockState.is(ConventionalBlockTags.ORES)) {
+        // Fortune: only for blocks in fortune_blocks tag (extensible via datapacks)
+        if (EnchantBlockRegistry.isFortuneBlock(blockState)) {
             Holder<Enchantment> fortune = enchantments.getOrThrow(Enchantments.FORTUNE);
             score += EnchantmentHelper.getItemEnchantmentLevel(fortune, stack) * 10000;
         }
 
         // Silk Touch: only for blocks that benefit (tag extensible via datapacks)
-        if (blockState.is(SILK_TOUCH_BLOCKS)) {
+        if (EnchantBlockRegistry.isSilkTouchBlock(blockState)) {
             Holder<Enchantment> silkTouch = enchantments.getOrThrow(Enchantments.SILK_TOUCH);
             score += EnchantmentHelper.getItemEnchantmentLevel(silkTouch, stack) * 10000;
         }
