@@ -5,7 +5,6 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.world.item.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qoby.hotbar_helper.network.EnchantBlocksSyncPayload;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
