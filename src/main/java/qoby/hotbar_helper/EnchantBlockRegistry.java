@@ -1,16 +1,19 @@
 package qoby.hotbar_helper;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
@@ -18,6 +21,7 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -67,40 +71,38 @@ public final class EnchantBlockRegistry {
     public static void register() {
         ServerWorldEvents.LOAD.register((server, level) -> {
             if (level.dimension() != Level.OVERWORLD) return;
-            rebuild(server);
+            rebuild(level);
         });
     }
 
     /** Rebuilds block lists. Call before sending sync to ensure data is ready. */
     public static void ensureBuilt(MinecraftServer server) {
-        rebuild(server);
+        var overworld = server.getLevel(Level.OVERWORLD);
+        if (overworld != null) rebuild(overworld);
     }
 
     /**
      * Rebuilds the fortune and silk touch block sets from tags and loot table
      * analysis. Safe to call from server thread.
      */
-    public static void rebuild(MinecraftServer server) {
-        var blockReg = server.registryAccess().registryOrThrow(Registries.BLOCK);
+    private static void rebuild(ServerLevel overworld) {
+        var blockLookup = overworld.registryAccess().lookupOrThrow(Registries.BLOCK);
 
         Set<Block> fortune = new HashSet<>();
         Set<Block> silkTouch = new HashSet<>();
 
-        addBlocksFromTag(blockReg, FORTUNE_BLOCKS, fortune);
-        addBlocksFromTag(blockReg, C_ORES, fortune);
-        addBlocksFromTag(blockReg, SILK_TOUCH_BLOCKS, silkTouch);
-        addBlocksFromTag(blockReg, C_CLUSTERS, silkTouch);
-        addBlocksFromTag(blockReg, C_GLASS_BLOCKS, silkTouch);
-        addBlocksFromTag(blockReg, C_GLASS_PANES, silkTouch);
-        addBlocksFromTag(blockReg, C_BUDDING_BLOCKS, silkTouch);
+        addBlocksFromTag(blockLookup, FORTUNE_BLOCKS, fortune);
+        addBlocksFromTagOptional(blockLookup, C_ORES, fortune);
+        addBlocksFromTag(blockLookup, SILK_TOUCH_BLOCKS, silkTouch);
+        addBlocksFromTagOptional(blockLookup, C_CLUSTERS, silkTouch);
+        addBlocksFromTagOptional(blockLookup, C_GLASS_BLOCKS, silkTouch);
+        addBlocksFromTagOptional(blockLookup, C_GLASS_PANES, silkTouch);
+        addBlocksFromTagOptional(blockLookup, C_BUDDING_BLOCKS, silkTouch);
 
-        ServerLevel overworld = server.overworld();
-        if (overworld != null) {
-            int fortuneAdded = scanLootForMissingBlocks(overworld, fortune, silkTouch);
-            if (fortuneAdded > 0) {
-                LOGGER.info("EnchantBlockRegistry: Added {} blocks from loot analysis to fortune/silk touch lists",
-                        fortuneAdded);
-            }
+        int fortuneAdded = scanLootForMissingBlocks(overworld, fortune, silkTouch);
+        if (fortuneAdded > 0) {
+            LOGGER.info("EnchantBlockRegistry: Added {} blocks from loot analysis to fortune/silk touch lists",
+                    fortuneAdded);
         }
 
         FORTUNE_BLOCKS_SET.clear();
@@ -108,16 +110,17 @@ public final class EnchantBlockRegistry {
         SILK_TOUCH_BLOCKS_SET.clear();
         SILK_TOUCH_BLOCKS_SET.addAll(silkTouch);
 
-        syncedFortuneBlocks = fortune.stream()
-                .map(blockReg::getResourceKey)
-                .filter(java.util.Optional::isPresent)
-                .map(o -> o.orElseThrow().location())
-                .toList();
-        syncedSilkTouchBlocks = silkTouch.stream()
-                .map(blockReg::getResourceKey)
-                .filter(java.util.Optional::isPresent)
-                .map(o -> o.orElseThrow().location())
-                .toList();
+        List<ResourceLocation> fortuneIds = new ArrayList<>();
+        List<ResourceLocation> silkIds = new ArrayList<>();
+        for (Holder.Reference<Block> holder : blockLookup.listElements().toList()) {
+            Block b = holder.value();
+            if (fortune.contains(b))
+                holder.unwrapKey().map(ResourceKey::location).ifPresent(fortuneIds::add);
+            if (silkTouch.contains(b))
+                holder.unwrapKey().map(ResourceKey::location).ifPresent(silkIds::add);
+        }
+        syncedFortuneBlocks = fortuneIds;
+        syncedSilkTouchBlocks = silkIds;
     }
 
     /** Returns the block ID lists for syncing to clients. Called on server. */
@@ -136,16 +139,14 @@ public final class EnchantBlockRegistry {
     public static void applySyncedBlocks(net.minecraft.core.RegistryAccess registryAccess,
             List<ResourceLocation> fortuneIds, List<ResourceLocation> silkTouchIds) {
         if (fortuneIds.isEmpty() && silkTouchIds.isEmpty()) return;
-        var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
+        var blockLookup = registryAccess.lookupOrThrow(Registries.BLOCK);
         FORTUNE_BLOCKS_SET.clear();
         SILK_TOUCH_BLOCKS_SET.clear();
         for (ResourceLocation id : fortuneIds) {
-            blockReg.getOptional(net.minecraft.resources.ResourceKey.create(Registries.BLOCK, id))
-                    .ifPresent(FORTUNE_BLOCKS_SET::add);
+            blockLookup.get(ResourceKey.create(Registries.BLOCK, id)).ifPresent(h -> FORTUNE_BLOCKS_SET.add(h.value()));
         }
         for (ResourceLocation id : silkTouchIds) {
-            blockReg.getOptional(net.minecraft.resources.ResourceKey.create(Registries.BLOCK, id))
-                    .ifPresent(SILK_TOUCH_BLOCKS_SET::add);
+            blockLookup.get(ResourceKey.create(Registries.BLOCK, id)).ifPresent(h -> SILK_TOUCH_BLOCKS_SET.add(h.value()));
         }
     }
 
@@ -155,23 +156,30 @@ public final class EnchantBlockRegistry {
      */
     public static void loadFromTagsIfEmpty(net.minecraft.core.RegistryAccess registryAccess) {
         if (!FORTUNE_BLOCKS_SET.isEmpty() && !SILK_TOUCH_BLOCKS_SET.isEmpty()) return;
-        var blockReg = registryAccess.registryOrThrow(Registries.BLOCK);
+        var blockLookup = registryAccess.lookupOrThrow(Registries.BLOCK);
         if (FORTUNE_BLOCKS_SET.isEmpty()) {
-            addBlocksFromTag(blockReg, FORTUNE_BLOCKS, FORTUNE_BLOCKS_SET);
-            addBlocksFromTag(blockReg, C_ORES, FORTUNE_BLOCKS_SET);
+            addBlocksFromTag(blockLookup, FORTUNE_BLOCKS, FORTUNE_BLOCKS_SET);
+            addBlocksFromTagOptional(blockLookup, C_ORES, FORTUNE_BLOCKS_SET);
         }
         if (SILK_TOUCH_BLOCKS_SET.isEmpty()) {
-            addBlocksFromTag(blockReg, SILK_TOUCH_BLOCKS, SILK_TOUCH_BLOCKS_SET);
-            addBlocksFromTag(blockReg, C_CLUSTERS, SILK_TOUCH_BLOCKS_SET);
-            addBlocksFromTag(blockReg, C_GLASS_BLOCKS, SILK_TOUCH_BLOCKS_SET);
-            addBlocksFromTag(blockReg, C_GLASS_PANES, SILK_TOUCH_BLOCKS_SET);
-            addBlocksFromTag(blockReg, C_BUDDING_BLOCKS, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTag(blockLookup, SILK_TOUCH_BLOCKS, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTagOptional(blockLookup, C_CLUSTERS, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTagOptional(blockLookup, C_GLASS_BLOCKS, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTagOptional(blockLookup, C_GLASS_PANES, SILK_TOUCH_BLOCKS_SET);
+            addBlocksFromTagOptional(blockLookup, C_BUDDING_BLOCKS, SILK_TOUCH_BLOCKS_SET);
         }
     }
 
-    private static void addBlocksFromTag(net.minecraft.core.Registry<Block> blockReg, TagKey<Block> tag,
-            Set<Block> out) {
-        blockReg.getTagOrEmpty(tag).forEach(holder -> out.add(holder.value()));
+    private static void addBlocksFromTag(HolderLookup.RegistryLookup<Block> lookup, TagKey<Block> tag, Set<Block> out) {
+        lookup.get(tag).ifPresent(named -> { for (Holder<Block> h : named) out.add(h.value()); });
+    }
+
+    private static void addBlocksFromTagOptional(HolderLookup.RegistryLookup<Block> lookup, TagKey<Block> tag, Set<Block> out) {
+        try {
+            lookup.get(tag).ifPresent(named -> { for (Holder<Block> h : named) out.add(h.value()); });
+        } catch (Exception ignored) {
+            // Tag may not exist (e.g. c:ores on vanilla)
+        }
     }
 
     /**
@@ -180,7 +188,7 @@ public final class EnchantBlockRegistry {
      */
     private static int scanLootForMissingBlocks(ServerLevel level, Set<Block> fortune, Set<Block> silkTouch) {
         int added = 0;
-        var blockReg = level.registryAccess().registryOrThrow(Registries.BLOCK);
+        var blockLookup = level.registryAccess().lookupOrThrow(Registries.BLOCK);
 
         ItemStack plainTool = new ItemStack(Items.DIAMOND_PICKAXE);
         ItemStack fortuneTool = new ItemStack(Items.DIAMOND_PICKAXE);
@@ -192,15 +200,15 @@ public final class EnchantBlockRegistry {
 
         var blockPos = level.getSharedSpawnPos();
 
-        for (var entry : blockReg.entrySet()) {
-            Block block = entry.getValue();
+        for (Holder.Reference<Block> holder : blockLookup.listElements().toList()) {
+            Block block = holder.value();
             BlockState state = block.defaultBlockState();
 
             if (state.isAir())
                 continue;
 
-            var lootKey = block.getLootTable();
-            if (lootKey == null || lootKey.location().getPath().equals("empty"))
+            var lootKeyOpt = block.getLootTable();
+            if (lootKeyOpt.isEmpty() || lootKeyOpt.get().location().getPath().equals("empty"))
                 continue;
 
             try {

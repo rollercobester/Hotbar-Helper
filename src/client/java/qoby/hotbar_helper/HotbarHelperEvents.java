@@ -2,18 +2,16 @@ package qoby.hotbar_helper;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.item.ProjectileItem;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.client.Minecraft;
 
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -22,7 +20,8 @@ import java.util.Queue;
 /**
  * Registers Fabric events for client-side detection of hotbar emptying.
  * Uses deferred execution (next client tick) since consumption happens after callback returns.
- * Uses UseItemCallback for all cases - block place, eat, throw - to ensure consistent timing.
+ * USE = any item consumed on use (in-air or on entity) that isn't place.
+ * Covers eating, throwables, ender pearl, eye of ender, feeding animals, etc.
  */
 public final class HotbarHelperEvents {
     private static final Queue<PendingRefill> pendingRefills = new ArrayDeque<>();
@@ -42,27 +41,34 @@ public final class HotbarHelperEvents {
             return InteractionResult.PASS;
         });
 
-        UseItemCallback.EVENT.register((player, level, hand) -> {
-            if (!level.isClientSide()) return InteractionResultHolder.pass(player.getItemInHand(hand));
-            if (hand != InteractionHand.MAIN_HAND) return InteractionResultHolder.pass(player.getItemInHand(hand));
+        UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
+            if (!level.isClientSide()) return InteractionResult.PASS;
+            if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+            if (!config.refillOnUse) return InteractionResult.PASS;
 
             ItemStack stack = player.getItemInHand(hand);
-            if (stack.isEmpty()) return InteractionResultHolder.pass(stack);
+            if (stack.isEmpty()) return InteractionResult.PASS;
 
-            Item item = stack.getItem();
-            HotbarRefillCause cause;
-            if (item instanceof ProjectileItem) {
-                if (!config.refillOnThrow) return InteractionResultHolder.pass(stack);
-                cause = HotbarRefillCause.THROW;
-            } else if (stack.getComponents().has(DataComponents.FOOD)) {
-                if (!config.refillOnEat) return InteractionResultHolder.pass(stack);
-                cause = HotbarRefillCause.EAT;
-            } else {
-                return InteractionResultHolder.pass(stack);
-            }
+            // Using item on entity (feeding animals, etc.) - item may be consumed
+            pendingRefills.add(new PendingRefill(player.getInventory().selected, stack.getItem(), HotbarRefillCause.USE, config));
+            return InteractionResult.PASS;
+        });
 
-            pendingRefills.add(new PendingRefill(player.getInventory().selected, item, cause, config));
-            return InteractionResultHolder.pass(stack);
+        UseItemCallback.EVENT.register((player, level, hand) -> {
+            if (!level.isClientSide()) return InteractionResult.PASS;
+            if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+
+            ItemStack stack = player.getItemInHand(hand);
+            if (stack.isEmpty()) return InteractionResult.PASS;
+
+            // BlockItems are handled by UseBlockCallback (PLACE) - avoid double refill
+            if (stack.getItem() instanceof BlockItem) return InteractionResult.PASS;
+
+            // Any item consumed on use: eating, throwables, ender pearl, feeding, etc.
+            if (!config.refillOnUse) return InteractionResult.PASS;
+
+            pendingRefills.add(new PendingRefill(player.getInventory().selected, stack.getItem(), HotbarRefillCause.USE, config));
+            return InteractionResult.PASS;
         });
 
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
@@ -99,16 +105,15 @@ public final class HotbarHelperEvents {
                 var stack = player.getInventory().getItem(pr.slot);
                 if (!stack.isEmpty()) {
                     pr.ticksWaiting++;
-                    if (pr.ticksWaiting > 40) it.remove();
+                    if (pr.ticksWaiting > 10) it.remove();
                     continue;
                 }
 
                 it.remove();
                 boolean enabled = switch (pr.cause) {
                     case PLACE -> pr.config.refillOnPlace;
-                    case EAT -> pr.config.refillOnEat;
                     case DROP -> pr.config.refillOnDrop;
-                    case THROW -> pr.config.refillOnThrow;
+                    case USE -> pr.config.refillOnUse;
                 };
                 if (!enabled) continue;
 
