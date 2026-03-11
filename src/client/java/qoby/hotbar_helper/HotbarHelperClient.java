@@ -16,6 +16,7 @@ public class HotbarHelperClient implements ClientModInitializer {
         HotbarRefill.refillHandler = new HotbarRefillClient();
         HotbarHelperEvents.register(config);
         HotbarToolSwitch.register(config);
+        HotbarHelperKeybinds.register();
 
         ClientPlayNetworking.registerGlobalReceiver(EnchantBlocksSyncPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {

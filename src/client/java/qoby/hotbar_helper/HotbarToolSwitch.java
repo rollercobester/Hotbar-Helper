@@ -3,12 +3,12 @@ package qoby.hotbar_helper;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.*;
-import net.minecraft.core.Holder;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -49,11 +49,12 @@ public final class HotbarToolSwitch {
             if (bestSlot == currentSlot)
                 return InteractionResult.PASS;
 
-            // Tie-breaking: when scores equal, prefer switching to empty/non-damageable to save durability
+            // Tie-breaking: when scores equal, prefer switching to empty/non-damageable to
+            // save durability
             var currentStack = player.getInventory().getItem(currentSlot);
             var bestStack = player.getInventory().getItem(bestSlot);
-            int currentScore = scoreTool(currentStack, state, player.level());
-            int bestScore = scoreTool(bestStack, state, player.level());
+            int currentScore = scoreItem(currentStack, state, player.level());
+            int bestScore = scoreItem(bestStack, state, player.level());
             if (currentScore == bestScore) {
                 // Only stay if switching wouldn't save durability
                 boolean bestSavesDurability = bestStack.isEmpty() || !bestStack.isDamageableItem();
@@ -102,7 +103,7 @@ public final class HotbarToolSwitch {
 
         for (int i = 0; i < 9; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            int score = scoreTool(stack, blockState, player.level());
+            int score = scoreItem(stack, blockState, player.level());
             if (score > bestScore) {
                 bestScore = score;
                 bestSlot = i;
@@ -111,11 +112,7 @@ public final class HotbarToolSwitch {
         return bestSlot;
     }
 
-    /**
-     * Scores a tool for mining the given block. Higher is better.
-     * Returns DEFAULT_SCORE for non-tools or almost-broken tools.
-     */
-    private static int scoreTool(ItemStack stack, BlockState blockState, Level level) {
+    private static int scoreItem(ItemStack stack, BlockState blockState, Level level) {
         // Empty hand: prefer over useless/almost-broken tools when nothing helps
         if (stack.isEmpty())
             return 0;
@@ -126,76 +123,38 @@ public final class HotbarToolSwitch {
             int maxDamage = stack.getMaxDamage();
             int damage = stack.getDamageValue();
             if (maxDamage > 0 && damage >= maxDamage - 5)
-                return -3;
+                return -2;
         }
 
-        Item item = stack.getItem();
-        int toolTypeScore = getToolTypeScore(item, blockState);
-
-        if (toolTypeScore <= 0) {
-            // Silk touch on silk-touch block with wrong tool: score above default, below
-            // correct tool
-            if (EnchantBlockRegistry.isSilkTouchBlock(blockState)) {
-                var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-                int silkTouch = EnchantmentHelper
-                        .getItemEnchantmentLevel(enchantments.getOrThrow(Enchantments.SILK_TOUCH), stack);
-                if (silkTouch > 0) {
-                    int enchantScore = getEnchantScore(stack, blockState, level);
-                    return enchantScore + 1; // Beats default (0), below correct tool (toolTypeScore * 10000)
-                }
-            }
-            // Fortune on fortune block (e.g. crops) with instant-break: getDestroySpeed <= 1 so
-            // toolTypeScore is 0, but fortune hoe should still beat empty hand
-            if (EnchantBlockRegistry.isFortuneBlock(blockState)) {
-                var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-                int fortune = EnchantmentHelper
-                        .getItemEnchantmentLevel(enchantments.getOrThrow(Enchantments.FORTUNE), stack);
-                if (fortune > 0) {
-                    int enchantScore = getEnchantScore(stack, blockState, level);
-                    return enchantScore + 1; // Beats default (0)
-                }
-            }
-            // Tool doesn't help: block needs no enchant, or needs enchant we don't have
-            boolean blockNeedsFortune = EnchantBlockRegistry.isFortuneBlock(blockState);
-            boolean blockNeedsSilkTouch = EnchantBlockRegistry.isSilkTouchBlock(blockState);
-            boolean hasRelevantEnchant = (blockNeedsFortune && EnchantmentHelper.getItemEnchantmentLevel(
-                    level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE), stack) > 0)
-                    || (blockNeedsSilkTouch && EnchantmentHelper.getItemEnchantmentLevel(
-                    level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH), stack) > 0);
-            if ((!blockNeedsFortune && !blockNeedsSilkTouch) || !hasRelevantEnchant) {
-                if (stack.isDamageableItem()) {
-                    return -2; // Deprioritize damageable to preserve durability
-                }
-                return 0;
-            }
-            return 0;
-        }
+        // Use destroy speed - works with any tool (vanilla and modded)
+        float miningSpeed = new ItemStack(stack.getItem()).getDestroySpeed(blockState);
+        int toolScore = miningSpeed > 1.0f ? (int) (miningSpeed * 2) : 0;
 
         int enchantScore = getEnchantScore(stack, blockState, level);
-        return toolTypeScore * 10_000 + enchantScore;
-    }
 
-    private static int getToolTypeScore(Item item, BlockState blockState) {
-        // Use destroy speed - works with any tool (vanilla and modded) without
-        // instanceof checks
-        float speed = new ItemStack(item).getDestroySpeed(blockState);
-        return speed > 1.0f ? (int) (speed * 2) : 0;
+        // Deprioritize useless tools to save durability
+        if (toolScore == 0 && enchantScore < 1000) {
+            return stack.isDamageableItem() ? -1 : 0;
+        }
+
+        // Prioritize tool type over enchants
+        return toolScore * 10000 + enchantScore;
     }
 
     private static int getEnchantScore(ItemStack stack, BlockState blockState, Level level) {
         int score = 0;
         var enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
 
-        // Fortune: only for blocks in fortune_blocks tag (extensible via datapacks)
+        // Fortune: for blocks that benefit (fortune_blocks tag - ores, wheat, grass, crops)
         if (EnchantBlockRegistry.isFortuneBlock(blockState)) {
             Holder<Enchantment> fortune = enchantments.getOrThrow(Enchantments.FORTUNE);
-            score += EnchantmentHelper.getItemEnchantmentLevel(fortune, stack) * 10000;
+            score += EnchantmentHelper.getItemEnchantmentLevel(fortune, stack) * 1000;
         }
 
-        // Silk Touch: only for blocks that benefit (tag extensible via datapacks)
+        // Silk Touch: for blocks that benefit (silk_touch_blocks tag)
         if (EnchantBlockRegistry.isSilkTouchBlock(blockState)) {
             Holder<Enchantment> silkTouch = enchantments.getOrThrow(Enchantments.SILK_TOUCH);
-            score += EnchantmentHelper.getItemEnchantmentLevel(silkTouch, stack) * 10000;
+            score += EnchantmentHelper.getItemEnchantmentLevel(silkTouch, stack) * 1000;
         }
 
         Holder<Enchantment> efficiency = enchantments.getOrThrow(Enchantments.EFFICIENCY);
