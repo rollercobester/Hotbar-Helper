@@ -150,7 +150,8 @@ public final class HotbarHelperEvents {
                     continue;
 
                 if (HotbarRefill.tryRefill(player, pr.slot, pr.itemType, false) && pr.config.refillSound) {
-                    player.level().playSound(player, player.blockPosition(), SoundEvents.CHICKEN_EGG, SoundSource.PLAYERS, 0.5f, 1f);
+                    player.level().playSound(player, player.blockPosition(), SoundEvents.CHICKEN_EGG,
+                            SoundSource.PLAYERS, 0.5f, 1f);
                 }
             }
         });
