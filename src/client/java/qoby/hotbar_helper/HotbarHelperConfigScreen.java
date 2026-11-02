@@ -47,6 +47,14 @@ public class HotbarHelperConfigScreen extends Screen {
         y += spacing;
 
         addRenderableWidget(
+                Checkbox.builder(Component.literal("Refill on entity place"), this.font)
+                        .pos(left, y)
+                        .selected(config.refillOnEntityPlace)
+                        .onValueChange((checkbox, value) -> config.refillOnEntityPlace = value)
+                        .build());
+        y += spacing;
+
+        addRenderableWidget(
                 Checkbox.builder(Component.literal("Refill on drop"), this.font)
                         .pos(left, y)
                         .selected(config.refillOnDrop)
