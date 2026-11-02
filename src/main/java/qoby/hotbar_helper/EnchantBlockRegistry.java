@@ -5,7 +5,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
@@ -39,23 +39,23 @@ public final class EnchantBlockRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(EnchantBlockRegistry.class);
 
     private static final TagKey<Block> FORTUNE_BLOCKS = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("hotbar_helper", "fortune_blocks"));
+            Identifier.fromNamespaceAndPath("hotbar_helper", "fortune_blocks"));
     private static final TagKey<Block> SILK_TOUCH_BLOCKS = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("hotbar_helper", "silk_touch_blocks"));
+            Identifier.fromNamespaceAndPath("hotbar_helper", "silk_touch_blocks"));
 
     /**
      * Optional tags from Fabric/mod conventions – if present, blocks are merged in.
      */
     private static final TagKey<Block> C_ORES = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("c", "ores"));
+            Identifier.fromNamespaceAndPath("c", "ores"));
     private static final TagKey<Block> C_CLUSTERS = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("c", "clusters"));
+            Identifier.fromNamespaceAndPath("c", "clusters"));
     private static final TagKey<Block> C_GLASS_BLOCKS = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("c", "glass_blocks"));
+            Identifier.fromNamespaceAndPath("c", "glass_blocks"));
     private static final TagKey<Block> C_GLASS_PANES = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("c", "glass_panes"));
+            Identifier.fromNamespaceAndPath("c", "glass_panes"));
     private static final TagKey<Block> C_BUDDING_BLOCKS = TagKey.create(Registries.BLOCK,
-            ResourceLocation.fromNamespaceAndPath("c", "budding_blocks"));
+            Identifier.fromNamespaceAndPath("c", "budding_blocks"));
 
     /**
      * Merged block sets: our tags + optional convention tags + loot-detected
@@ -65,8 +65,8 @@ public final class EnchantBlockRegistry {
     private static final Set<Block> SILK_TOUCH_BLOCKS_SET = ConcurrentHashMap.newKeySet();
 
     /** Block IDs for syncing to client (updated by server after rebuild). */
-    private static volatile List<ResourceLocation> syncedFortuneBlocks = List.of();
-    private static volatile List<ResourceLocation> syncedSilkTouchBlocks = List.of();
+    private static volatile List<Identifier> syncedFortuneBlocks = List.of();
+    private static volatile List<Identifier> syncedSilkTouchBlocks = List.of();
 
     public static void register() {
         ServerWorldEvents.LOAD.register((server, level) -> {
@@ -112,25 +112,25 @@ public final class EnchantBlockRegistry {
         SILK_TOUCH_BLOCKS_SET.clear();
         SILK_TOUCH_BLOCKS_SET.addAll(silkTouch);
 
-        List<ResourceLocation> fortuneIds = new ArrayList<>();
-        List<ResourceLocation> silkIds = new ArrayList<>();
+        List<Identifier> fortuneIds = new ArrayList<>();
+        List<Identifier> silkIds = new ArrayList<>();
         for (Holder.Reference<Block> holder : blockLookup.listElements().toList()) {
             Block b = holder.value();
             if (fortune.contains(b))
-                holder.unwrapKey().map(ResourceKey::location).ifPresent(fortuneIds::add);
+                holder.unwrapKey().map(ResourceKey::identifier).ifPresent(fortuneIds::add);
             if (silkTouch.contains(b))
-                holder.unwrapKey().map(ResourceKey::location).ifPresent(silkIds::add);
+                holder.unwrapKey().map(ResourceKey::identifier).ifPresent(silkIds::add);
         }
         syncedFortuneBlocks = fortuneIds;
         syncedSilkTouchBlocks = silkIds;
     }
 
     /** Returns the block ID lists for syncing to clients. Called on server. */
-    public static List<ResourceLocation> getSyncedFortuneBlocks() {
+    public static List<Identifier> getSyncedFortuneBlocks() {
         return syncedFortuneBlocks;
     }
 
-    public static List<ResourceLocation> getSyncedSilkTouchBlocks() {
+    public static List<Identifier> getSyncedSilkTouchBlocks() {
         return syncedSilkTouchBlocks;
     }
 
@@ -139,16 +139,16 @@ public final class EnchantBlockRegistry {
      * is received. If payload is empty, skip to avoid clearing valid data.
      */
     public static void applySyncedBlocks(net.minecraft.core.RegistryAccess registryAccess,
-            List<ResourceLocation> fortuneIds, List<ResourceLocation> silkTouchIds) {
+            List<Identifier> fortuneIds, List<Identifier> silkTouchIds) {
         if (fortuneIds.isEmpty() && silkTouchIds.isEmpty())
             return;
         var blockLookup = registryAccess.lookupOrThrow(Registries.BLOCK);
         FORTUNE_BLOCKS_SET.clear();
         SILK_TOUCH_BLOCKS_SET.clear();
-        for (ResourceLocation id : fortuneIds) {
+        for (Identifier id : fortuneIds) {
             blockLookup.get(ResourceKey.create(Registries.BLOCK, id)).ifPresent(h -> FORTUNE_BLOCKS_SET.add(h.value()));
         }
-        for (ResourceLocation id : silkTouchIds) {
+        for (Identifier id : silkTouchIds) {
             blockLookup.get(ResourceKey.create(Registries.BLOCK, id))
                     .ifPresent(h -> SILK_TOUCH_BLOCKS_SET.add(h.value()));
         }
@@ -220,7 +220,7 @@ public final class EnchantBlockRegistry {
                 continue;
 
             var lootKeyOpt = block.getLootTable();
-            if (lootKeyOpt.isEmpty() || lootKeyOpt.get().location().getPath().equals("empty"))
+            if (lootKeyOpt.isEmpty() || lootKeyOpt.get().identifier().getPath().equals("empty"))
                 continue;
 
             try {

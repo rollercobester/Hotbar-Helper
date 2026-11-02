@@ -7,7 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 
 import java.io.IOException;
@@ -131,7 +131,7 @@ public class HotbarHelperConfig {
     }
 
     public boolean addRefillWhitelistId(String token) {
-        ResourceLocation id = parseItemId(token);
+        Identifier id = parseItemId(token);
         if (id == null) return false;
         String key = id.toString();
         if (refillWhitelist.contains(key)) return false;
@@ -140,7 +140,7 @@ public class HotbarHelperConfig {
     }
 
     public void removeRefillWhitelistId(String token) {
-        ResourceLocation id = parseItemId(token == null ? "" : token);
+        Identifier id = parseItemId(token == null ? "" : token);
         if (id != null) refillWhitelist.remove(id.toString());
         else if (token != null) refillWhitelist.remove(token);
     }
@@ -153,7 +153,7 @@ public class HotbarHelperConfig {
     public boolean allowsRefill(Item item) {
         if (item == null) return false;
         if (refillWhitelist.isEmpty()) return true;
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        Identifier itemId = BuiltInRegistries.ITEM.getKey(item);
         if (itemId == null) return false;
         boolean listed = refillWhitelist.contains(itemId.toString());
         return refillFilterMode == RefillFilterMode.BLACKLIST ? !listed : listed;
@@ -175,11 +175,11 @@ public class HotbarHelperConfig {
         }
     }
 
-    private static ResourceLocation parseItemId(String token) {
+    private static Identifier parseItemId(String token) {
         if (token == null) return null;
         token = token.trim().toLowerCase(Locale.ROOT);
         if (token.isEmpty()) return null;
         if (token.indexOf(':') < 0) token = "minecraft:" + token;
-        return ResourceLocation.tryParse(token);
+        return Identifier.tryParse(token);
     }
 }

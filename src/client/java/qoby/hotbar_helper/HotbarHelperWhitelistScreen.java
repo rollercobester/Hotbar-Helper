@@ -10,7 +10,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -74,9 +74,8 @@ public class HotbarHelperWhitelistScreen extends Screen {
         contentWidth = Math.min(360, this.width - 40);
         left = (this.width - contentWidth) / 2;
 
-        addRenderableWidget(CycleButton.builder((HotbarHelperConfig.RefillFilterMode mode) -> Component.literal(mode.label()))
+        addRenderableWidget(CycleButton.builder((HotbarHelperConfig.RefillFilterMode mode) -> Component.literal(mode.label()), config.refillFilterMode())
                 .withValues(HotbarHelperConfig.RefillFilterMode.WHITELIST, HotbarHelperConfig.RefillFilterMode.BLACKLIST)
-                .withInitialValue(config.refillFilterMode())
                 .create(left, 24, contentWidth, 20, Component.literal("Filter"), (button, mode) -> config.setRefillFilterMode(mode)));
 
         searchBox = new EditBox(this.font, left, 48, contentWidth, 20, Component.literal("Search items"));
@@ -106,7 +105,7 @@ public class HotbarHelperWhitelistScreen extends Screen {
     private void buildCatalog() {
         for (Item item : BuiltInRegistries.ITEM) {
             if (item == Items.AIR) continue;
-            ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+            Identifier id = BuiltInRegistries.ITEM.getKey(item);
             if (id == null) continue;
             ItemStack stack = new ItemStack(item);
             String name;
@@ -129,7 +128,7 @@ public class HotbarHelperWhitelistScreen extends Screen {
     }
 
     private ItemChoice resolve(String idString) {
-        ResourceLocation id = ResourceLocation.tryParse(idString);
+        Identifier id = Identifier.tryParse(idString);
         if (id != null) {
             var found = BuiltInRegistries.ITEM.getOptional(id);
             if (found.isEmpty()) {
@@ -404,7 +403,7 @@ public class HotbarHelperWhitelistScreen extends Screen {
         if (this.minecraft != null) this.minecraft.setScreen(parent);
     }
 
-    private record ItemChoice(Item item, ItemStack stack, ResourceLocation id, String name, String idString) {
+    private record ItemChoice(Item item, ItemStack stack, Identifier id, String name, String idString) {
     }
 
     private static final class Row {
