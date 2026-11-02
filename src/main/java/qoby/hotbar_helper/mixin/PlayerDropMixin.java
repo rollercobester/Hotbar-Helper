@@ -33,8 +33,7 @@ public abstract class PlayerDropMixin {
             Player self = (Player) (Object) this;
             HotbarHelperConfig config = HotbarHelper.getConfig();
             if (config == null || !config.refillOnDrop) return;
-
-            if (droppedStack == null || droppedStack.isEmpty()) return;
+            if (droppedStack == null || droppedStack.isEmpty() || !config.allowsRefill(droppedStack.getItem())) return;
 
             ItemStack mainHand = mainHandAtHead.get();
             if (mainHand == null || mainHand.isEmpty()) return;
