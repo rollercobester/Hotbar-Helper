@@ -3,6 +3,7 @@ package qoby.hotbar_helper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -24,7 +25,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Searchable item picker for the refill whitelist. The catalog is the item
+ * Searchable item picker for the refill filter. The catalog is the item
  * registry, so items added by other mods show up here too.
  */
 public class HotbarHelperWhitelistScreen extends Screen {
@@ -59,7 +60,7 @@ public class HotbarHelperWhitelistScreen extends Screen {
     private boolean layoutDirty;
 
     public HotbarHelperWhitelistScreen(Screen parent, HotbarHelperConfig config) {
-        super(Component.literal("Refill whitelist"));
+        super(Component.literal("Item refill filter"));
         this.parent = parent;
         this.config = config;
     }
@@ -73,7 +74,12 @@ public class HotbarHelperWhitelistScreen extends Screen {
         contentWidth = Math.min(360, this.width - 40);
         left = (this.width - contentWidth) / 2;
 
-        searchBox = new EditBox(this.font, left, 36, contentWidth, 20, Component.literal("Search items"));
+        addRenderableWidget(CycleButton.builder((HotbarHelperConfig.RefillFilterMode mode) -> Component.literal(mode.label()))
+                .withValues(HotbarHelperConfig.RefillFilterMode.WHITELIST, HotbarHelperConfig.RefillFilterMode.BLACKLIST)
+                .withInitialValue(config.refillFilterMode())
+                .create(left, 24, contentWidth, 20, Component.literal("Filter"), (button, mode) -> config.setRefillFilterMode(mode)));
+
+        searchBox = new EditBox(this.font, left, 48, contentWidth, 20, Component.literal("Search items"));
         searchBox.setMaxLength(64);
         searchBox.setHint(Component.literal("Search items or mods"));
         searchBox.setValue(searchText);
@@ -181,7 +187,7 @@ public class HotbarHelperWhitelistScreen extends Screen {
         int y = searchBox.getY() + searchBox.getHeight() + 2;
         suggestionTop = y;
         boolean searching = !searchText.isBlank();
-        int maxSuggestionRows = Math.max(3, Math.min(MAX_SUGGESTIONS, (this.height - 150) / ROW_HEIGHT));
+        int maxSuggestionRows = Math.max(3, Math.min(MAX_SUGGESTIONS, (this.height - 174) / ROW_HEIGHT));
         if (!searching) {
             noMatchY = -1;
         } else if (suggestions.isEmpty()) {
@@ -325,8 +331,7 @@ public class HotbarHelperWhitelistScreen extends Screen {
             layoutRows();
         }
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
-        graphics.drawCenteredString(this.font, "Empty list refills every item", this.width / 2, 24, 0xA0A0A0);
+        graphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
 
         ItemChoice tooltip = null;
         for (Row row : drawnRows) {
@@ -348,12 +353,16 @@ public class HotbarHelperWhitelistScreen extends Screen {
         if (noMatchY >= 0) {
             graphics.drawString(this.font, "No matching items", left + 4, noMatchY, 0xFFA0A0A0);
         }
-        String whitelistLabel = selected.isEmpty() ? "Whitelist" : "Whitelist (" + selected.size() + ")";
+        String listName = config.refillFilterMode() == HotbarHelperConfig.RefillFilterMode.BLACKLIST ? "Blacklist" : "Whitelist";
+        String whitelistLabel = selected.isEmpty() ? listName : listName + " (" + selected.size() + ")";
         if (whitelistLabelY >= 0) {
             graphics.drawString(this.font, whitelistLabel, left, whitelistLabelY, 0xFFFFFF);
         }
         if (emptyWhitelistY >= 0) {
-            graphics.drawString(this.font, fit("Every item can refill. Search above to limit it.", contentWidth - 8), left + 4, emptyWhitelistY, 0xFFA0A0A0);
+            String empty = config.refillFilterMode() == HotbarHelperConfig.RefillFilterMode.BLACKLIST
+                    ? "Every item refills until you blacklist some."
+                    : "Every item refills until you whitelist some.";
+            graphics.drawString(this.font, fit(empty, contentWidth - 8), left + 4, emptyWhitelistY, 0xFFA0A0A0);
         }
         if (tooltip != null) {
             graphics.setTooltipForNextFrame(this.font, tooltip.stack, mouseX, mouseY);
