@@ -19,6 +19,8 @@ public final class HotbarRefill {
     }
 
     public static boolean tryRefill(Player player, int emptySlot, Item itemToMatch, boolean isContinuation) {
+        HotbarHelperConfig config = HotbarHelper.getConfig();
+        if (config != null && !config.allowsRefill(itemToMatch)) return false;
         RefillHandler handler = refillHandler;
         return handler != null && handler.tryRefill(player, emptySlot, itemToMatch, isContinuation);
     }

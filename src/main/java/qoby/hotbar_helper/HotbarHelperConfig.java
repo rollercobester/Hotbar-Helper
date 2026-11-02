@@ -2,16 +2,22 @@ package qoby.hotbar_helper;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 /**
  * Configuration for Hotbar Helper's auto-refill feature.
  * Each method of emptying a hotbar slot can be individually enabled or disabled.
+ * {@link #refillWhitelist} limits which items may refill. A blank list refills every item.
  */
 public class HotbarHelperConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -23,6 +29,8 @@ public class HotbarHelperConfig {
     public boolean refillSound = true;
     public boolean autoToolSwitch = true;
     public boolean preserveSlotAfterMining = true;
+    /** Comma, semicolon, or whitespace separated item ids. Blank allows every item. */
+    public String refillWhitelist = "";
 
     public static HotbarHelperConfig load(Path configDir) {
         Path configPath = configDir.resolve(CONFIG_FILE_NAME);
@@ -46,6 +54,7 @@ public class HotbarHelperConfig {
             if (obj.has("autoToolSwitch")) config.autoToolSwitch = obj.get("autoToolSwitch").getAsBoolean();
             if (obj.has("refillSound")) config.refillSound = obj.get("refillSound").getAsBoolean();
             if (obj.has("preserveSlotAfterMining")) config.preserveSlotAfterMining = obj.get("preserveSlotAfterMining").getAsBoolean();
+            if (obj.has("refillWhitelist")) config.refillWhitelist = whitelistFromJson(obj.get("refillWhitelist"));
             return config;
         } catch (IOException e) {
             HotbarHelper.LOGGER.warn("Failed to load config, using defaults", e);
@@ -64,9 +73,61 @@ public class HotbarHelperConfig {
             obj.addProperty("refillSound", refillSound);
             obj.addProperty("autoToolSwitch", autoToolSwitch);
             obj.addProperty("preserveSlotAfterMining", preserveSlotAfterMining);
+            obj.addProperty("refillWhitelist", refillWhitelist == null ? "" : refillWhitelist);
             Files.writeString(configPath, GSON.toJson(obj));
         } catch (IOException e) {
             HotbarHelper.LOGGER.error("Failed to save config", e);
         }
+    }
+
+    public void setRefillWhitelist(String text) {
+        refillWhitelist = text == null ? "" : text;
+    }
+
+    /**
+     * @return {@code true} when this item may be pulled into the hotbar.
+     *         A blank whitelist allows every item.
+     */
+    public boolean allowsRefill(Item item) {
+        if (item == null) return false;
+        String text = refillWhitelist;
+        if (text == null || text.isBlank()) return true;
+
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        if (itemId == null) return false;
+
+        boolean sawToken = false;
+        for (String part : text.split("[,;\\s]+")) {
+            String token = part.trim().toLowerCase(Locale.ROOT);
+            if (token.isEmpty()) continue;
+            sawToken = true;
+            ResourceLocation id = parseItemId(token);
+            if (itemId.equals(id)) return true;
+        }
+        return !sawToken;
+    }
+
+    private static ResourceLocation parseItemId(String token) {
+        if (token.indexOf(':') < 0) {
+            token = "minecraft:" + token;
+        }
+        return ResourceLocation.tryParse(token);
+    }
+
+    private static String whitelistFromJson(JsonElement element) {
+        if (element == null || element.isJsonNull()) return "";
+        if (element.isJsonArray()) {
+            StringBuilder joined = new StringBuilder();
+            for (JsonElement entry : element.getAsJsonArray()) {
+                if (!entry.isJsonPrimitive()) continue;
+                String token = entry.getAsString().trim();
+                if (token.isEmpty()) continue;
+                if (joined.length() > 0) joined.append(", ");
+                joined.append(token);
+            }
+            return joined.toString();
+        }
+        if (element.isJsonPrimitive()) return element.getAsString();
+        return "";
     }
 }
