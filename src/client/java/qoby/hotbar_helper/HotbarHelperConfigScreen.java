@@ -68,12 +68,9 @@ public class HotbarHelperConfigScreen extends Screen {
                         .selected(config.refillSound)
                         .onValueChange((checkbox, value) -> config.refillSound = value)
                         .build());
-        y += spacing + spaceAboveLabel;
+        y += spacing;
 
-        addRenderableWidget(new StringWidget(left, y, contentWidth, 9, Component.literal("Refill whitelist"), this.font));
-        y += spaceBelowLabel;
-
-        addRenderableWidget(Button.builder(whitelistButtonLabel(), button -> {
+        addRenderableWidget(Button.builder(Component.literal(config.refillFilterSummary()), button -> {
             if (this.minecraft != null) {
                 this.minecraft.setScreen(new HotbarHelperWhitelistScreen(this, config));
             }
@@ -101,12 +98,6 @@ public class HotbarHelperConfigScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(this.width / 2 - 100, this.height - 28, 200, 20)
                 .build());
-    }
-
-    private Component whitelistButtonLabel() {
-        int count = config.refillWhitelistSize();
-        if (count == 0) return Component.literal("Edit refill whitelist (every item)");
-        return Component.literal("Edit refill whitelist (" + count + (count == 1 ? " item)" : " items)"));
     }
 
     @Override

@@ -20,9 +20,28 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Configuration for Hotbar Helper's auto-refill feature.
  * Each method of emptying a hotbar slot can be individually enabled or disabled.
- * An empty refill whitelist refills every item. Otherwise only listed items refill.
+ * The refill filter is inactive while its item list is empty.
+ * In whitelist mode only listed items refill. In blacklist mode listed items do not.
  */
 public class HotbarHelperConfig {
+    public enum RefillFilterMode {
+        WHITELIST("Whitelist"),
+        BLACKLIST("Blacklist");
+
+        private final String label;
+
+        RefillFilterMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        public static RefillFilterMode fromString(String value) {
+            return value != null && value.equalsIgnoreCase("blacklist") ? BLACKLIST : WHITELIST;
+        }
+    }
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String CONFIG_FILE_NAME = "hotbar-helper.json";
 
@@ -32,8 +51,9 @@ public class HotbarHelperConfig {
     public boolean refillSound = true;
     public boolean autoToolSwitch = true;
     public boolean preserveSlotAfterMining = true;
-    /** Item ids allowed to refill. Empty means every item. */
+    /** Item ids included in the refill filter. Empty means the filter is inactive. */
     private final List<String> refillWhitelist = new CopyOnWriteArrayList<>();
+    private RefillFilterMode refillFilterMode = RefillFilterMode.WHITELIST;
 
     public static HotbarHelperConfig load(Path configDir) {
         Path configPath = configDir.resolve(CONFIG_FILE_NAME);
@@ -59,6 +79,7 @@ public class HotbarHelperConfig {
             if (obj.has("refillSound")) config.refillSound = obj.get("refillSound").getAsBoolean();
             if (obj.has("preserveSlotAfterMining")) config.preserveSlotAfterMining = obj.get("preserveSlotAfterMining").getAsBoolean();
             if (obj.has("refillWhitelist")) config.readWhitelist(obj.get("refillWhitelist"));
+            if (obj.has("refillFilterMode")) config.refillFilterMode = RefillFilterMode.fromString(obj.get("refillFilterMode").getAsString());
             return config;
         } catch (IOException e) {
             HotbarHelper.LOGGER.warn("Failed to load config, using defaults", e);
@@ -80,10 +101,26 @@ public class HotbarHelperConfig {
             JsonArray whitelist = new JsonArray();
             for (String id : refillWhitelist) whitelist.add(id);
             obj.add("refillWhitelist", whitelist);
+            obj.addProperty("refillFilterMode", refillFilterMode == RefillFilterMode.BLACKLIST ? "blacklist" : "whitelist");
             Files.writeString(configPath, GSON.toJson(obj));
         } catch (IOException e) {
             HotbarHelper.LOGGER.error("Failed to save config", e);
         }
+    }
+
+    public RefillFilterMode refillFilterMode() {
+        return refillFilterMode;
+    }
+
+    public void setRefillFilterMode(RefillFilterMode mode) {
+        refillFilterMode = mode == null ? RefillFilterMode.WHITELIST : mode;
+    }
+
+    public String refillFilterSummary() {
+        int count = refillWhitelist.size();
+        if (count == 0) return "Item refill filter (inactive)";
+        String word = refillFilterMode == RefillFilterMode.BLACKLIST ? "blacklisted" : "whitelisted";
+        return "Item refill filter (" + count + " " + word + ")";
     }
 
     public int refillWhitelistSize() {
@@ -111,13 +148,16 @@ public class HotbarHelperConfig {
 
     /**
      * @return {@code true} when this item may be pulled into the hotbar.
-     *         An empty whitelist allows every item.
+     *         An empty filter allows every item. Whitelist mode allows only listed items.
+     *         Blacklist mode allows every item except the listed ones.
      */
     public boolean allowsRefill(Item item) {
         if (item == null) return false;
         if (refillWhitelist.isEmpty()) return true;
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-        return itemId != null && refillWhitelist.contains(itemId.toString());
+        if (itemId == null) return false;
+        boolean listed = refillWhitelist.contains(itemId.toString());
+        return refillFilterMode == RefillFilterMode.BLACKLIST ? !listed : listed;
     }
 
     private void readWhitelist(JsonElement element) {
