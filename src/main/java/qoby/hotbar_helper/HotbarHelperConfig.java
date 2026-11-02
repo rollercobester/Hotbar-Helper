@@ -46,6 +46,7 @@ public class HotbarHelperConfig {
     private static final String CONFIG_FILE_NAME = "hotbar-helper.json";
 
     public boolean refillOnPlace = true;
+    public boolean refillOnEntityPlace = true;
     public boolean refillOnDrop = true;
     public boolean refillOnUse = true;
     public boolean refillSound = true;
@@ -68,6 +69,7 @@ public class HotbarHelperConfig {
             HotbarHelperConfig config = new HotbarHelperConfig();
             if (obj.has("refillOnPlace")) config.refillOnPlace = obj.get("refillOnPlace").getAsBoolean();
             else if (obj.has("replaceOnPlace")) config.refillOnPlace = obj.get("replaceOnPlace").getAsBoolean();
+            if (obj.has("refillOnEntityPlace")) config.refillOnEntityPlace = obj.get("refillOnEntityPlace").getAsBoolean();
             if (obj.has("refillOnDrop")) config.refillOnDrop = obj.get("refillOnDrop").getAsBoolean();
             else if (obj.has("replaceOnDrop")) config.refillOnDrop = obj.get("replaceOnDrop").getAsBoolean();
             if (obj.has("refillOnUse")) config.refillOnUse = obj.get("refillOnUse").getAsBoolean();
@@ -93,6 +95,7 @@ public class HotbarHelperConfig {
             Path configPath = configDir.resolve(CONFIG_FILE_NAME);
             JsonObject obj = new JsonObject();
             obj.addProperty("refillOnPlace", refillOnPlace);
+            obj.addProperty("refillOnEntityPlace", refillOnEntityPlace);
             obj.addProperty("refillOnDrop", refillOnDrop);
             obj.addProperty("refillOnUse", refillOnUse);
             obj.addProperty("refillSound", refillSound);

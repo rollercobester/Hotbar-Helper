@@ -11,9 +11,16 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ArmorStandItem;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.BoatItem;
+import net.minecraft.world.item.EndCrystalItem;
+import net.minecraft.world.item.HangingEntityItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.MinecartItem;
+import net.minecraft.world.item.MobBucketItem;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayDeque;
@@ -23,7 +30,8 @@ import java.util.Queue;
 /**
  * Registers Fabric events for client-side detection of hotbar emptying.
  * Uses deferred execution (next client tick) since consumption happens after callback returns.
- * USE = any item consumed on use (in-air or on entity) that isn't place.
+ * PLACE = block items. ENTITY_PLACE = items that spawn an entity, such as minecarts.
+ * USE = any other item consumed on use (in-air or on entity).
  * Covers eating, throwables, ender pearl, eye of ender, feeding animals, etc.
  */
 public final class HotbarHelperEvents {
@@ -34,14 +42,25 @@ public final class HotbarHelperEvents {
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             if (!level.isClientSide()) return InteractionResult.PASS;
             if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
-            if (!config.refillOnPlace) return InteractionResult.PASS;
             if (hitResult.getType() != HitResult.Type.BLOCK) return InteractionResult.PASS;
 
             ItemStack stack = player.getItemInHand(hand);
-            if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) return InteractionResult.PASS;
-            if (!config.allowsRefill(stack.getItem())) return InteractionResult.PASS;
+            if (stack.isEmpty()) return InteractionResult.PASS;
+            Item item = stack.getItem();
+            if (!config.allowsRefill(item)) return InteractionResult.PASS;
 
-            pendingRefills.add(new PendingRefill(player.getInventory().selected, stack.getItem(), HotbarRefillCause.PLACE, config));
+            HotbarRefillCause cause;
+            if (item instanceof BlockItem) {
+                if (!config.refillOnPlace) return InteractionResult.PASS;
+                cause = HotbarRefillCause.PLACE;
+            } else if (placesEntity(item)) {
+                if (!config.refillOnEntityPlace) return InteractionResult.PASS;
+                cause = HotbarRefillCause.ENTITY_PLACE;
+            } else {
+                return InteractionResult.PASS;
+            }
+
+            pendingRefills.add(new PendingRefill(player.getInventory().selected, item, cause, config));
             return InteractionResult.PASS;
         });
 
@@ -64,7 +83,7 @@ public final class HotbarHelperEvents {
             ItemStack stack = player.getItemInHand(hand);
             if (stack.isEmpty()) return InteractionResultHolder.pass(stack);
 
-            if (stack.getItem() instanceof BlockItem) return InteractionResultHolder.pass(stack);
+            if (stack.getItem() instanceof BlockItem || placesEntity(stack.getItem())) return InteractionResultHolder.pass(stack);
 
             if (!config.refillOnUse || !config.allowsRefill(stack.getItem())) return InteractionResultHolder.pass(stack);
 
@@ -120,6 +139,7 @@ public final class HotbarHelperEvents {
                 it.remove();
                 boolean enabled = switch (pr.cause) {
                     case PLACE -> pr.config.refillOnPlace;
+                    case ENTITY_PLACE -> pr.config.refillOnEntityPlace;
                     case DROP -> pr.config.refillOnDrop;
                     case USE -> pr.config.refillOnUse;
                 };
@@ -130,6 +150,17 @@ public final class HotbarHelperEvents {
                 }
             }
         });
+    }
+
+    /** Items that spawn an entity when used on a block, rather than placing a block. */
+    private static boolean placesEntity(Item item) {
+        return item instanceof MinecartItem
+                || item instanceof BoatItem
+                || item instanceof ArmorStandItem
+                || item instanceof HangingEntityItem
+                || item instanceof SpawnEggItem
+                || item instanceof EndCrystalItem
+                || item instanceof MobBucketItem;
     }
 
     private static final class PendingRefill {
