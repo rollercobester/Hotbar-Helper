@@ -3,6 +3,7 @@ package qoby.hotbar_helper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Checkbox;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -69,6 +70,17 @@ public class HotbarHelperConfigScreen extends Screen {
                         .onValueChange((checkbox, value) -> config.refillSound = value)
                         .build());
         y += spacing + spaceAboveLabel;
+
+        addRenderableWidget(new StringWidget(left, y, contentWidth, 9, Component.literal("Refill whitelist"), this.font));
+        y += spaceBelowLabel;
+
+        EditBox whitelistBox = new EditBox(this.font, left, y, contentWidth, 18, Component.literal("Refill whitelist"));
+        whitelistBox.setMaxLength(4096);
+        whitelistBox.setHint(Component.literal("Blank refills every item"));
+        whitelistBox.setValue(config.refillWhitelist == null ? "" : config.refillWhitelist);
+        whitelistBox.setResponder(config::setRefillWhitelist);
+        addRenderableWidget(whitelistBox);
+        y += 22 + spaceAboveLabel;
 
         addRenderableWidget(new StringWidget(left, y, contentWidth, 9, Component.literal("Tool switch"), this.font));
         y += spaceBelowLabel;

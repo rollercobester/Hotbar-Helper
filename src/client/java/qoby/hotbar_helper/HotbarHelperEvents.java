@@ -44,6 +44,8 @@ public final class HotbarHelperEvents {
             ItemStack stack = player.getItemInHand(hand);
             if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem))
                 return InteractionResult.PASS;
+            if (!config.allowsRefill(stack.getItem()))
+                return InteractionResult.PASS;
 
             pendingRefills.add(new PendingRefill(player.getInventory().getSelectedSlot(), stack.getItem(),
                     HotbarRefillCause.PLACE, config));
@@ -59,7 +61,7 @@ public final class HotbarHelperEvents {
                 return InteractionResult.PASS;
 
             ItemStack stack = player.getItemInHand(hand);
-            if (stack.isEmpty())
+            if (stack.isEmpty() || !config.allowsRefill(stack.getItem()))
                 return InteractionResult.PASS;
 
             // Using item on entity (feeding animals, etc.) - item may be consumed
@@ -84,7 +86,7 @@ public final class HotbarHelperEvents {
                 return InteractionResult.PASS;
 
             // Any item consumed on use: eating, throwables, ender pearl, feeding, etc.
-            if (!config.refillOnUse)
+            if (!config.refillOnUse || !config.allowsRefill(stack.getItem()))
                 return InteractionResult.PASS;
 
             pendingRefills.add(
@@ -101,7 +103,7 @@ public final class HotbarHelperEvents {
             boolean keyDropDown = client.options.keyDrop.isDown();
             if (config.refillOnDrop && keyDropDown && !wasKeyDropDownLastTick) {
                 var stack = player.getItemInHand(InteractionHand.MAIN_HAND);
-                if (!stack.isEmpty()) {
+                if (!stack.isEmpty() && config.allowsRefill(stack.getItem())) {
                     pendingRefills.add(new PendingRefill(player.getInventory().getSelectedSlot(), stack.getItem(),
                             HotbarRefillCause.DROP, config));
                 }
@@ -148,7 +150,7 @@ public final class HotbarHelperEvents {
                     case DROP -> pr.config.refillOnDrop;
                     case USE -> pr.config.refillOnUse;
                 };
-                if (!enabled)
+                if (!enabled || !pr.config.allowsRefill(pr.itemType))
                     continue;
 
                 if (HotbarRefill.tryRefill(player, pr.slot, pr.itemType, false) && pr.config.refillSound) {
