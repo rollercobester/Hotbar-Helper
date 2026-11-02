@@ -3,7 +3,6 @@ package qoby.hotbar_helper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Checkbox;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -74,13 +73,12 @@ public class HotbarHelperConfigScreen extends Screen {
         addRenderableWidget(new StringWidget(left, y, contentWidth, 9, Component.literal("Refill whitelist"), this.font));
         y += spaceBelowLabel;
 
-        EditBox whitelistBox = new EditBox(this.font, left, y, contentWidth, 18, Component.literal("Refill whitelist"));
-        whitelistBox.setMaxLength(4096);
-        whitelistBox.setHint(Component.literal("Blank refills every item"));
-        whitelistBox.setValue(config.refillWhitelist == null ? "" : config.refillWhitelist);
-        whitelistBox.setResponder(config::setRefillWhitelist);
-        addRenderableWidget(whitelistBox);
-        y += 22 + spaceAboveLabel;
+        addRenderableWidget(Button.builder(whitelistButtonLabel(), button -> {
+            if (this.minecraft != null) {
+                this.minecraft.setScreen(new HotbarHelperWhitelistScreen(this, config));
+            }
+        }).bounds(left, y, contentWidth, 20).build());
+        y += 24 + spaceAboveLabel;
 
         addRenderableWidget(new StringWidget(left, y, contentWidth, 9, Component.literal("Tool switch"), this.font));
         y += spaceBelowLabel;
@@ -103,6 +101,12 @@ public class HotbarHelperConfigScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
                 .bounds(this.width / 2 - 100, this.height - 28, 200, 20)
                 .build());
+    }
+
+    private Component whitelistButtonLabel() {
+        int count = config.refillWhitelistSize();
+        if (count == 0) return Component.literal("Edit refill whitelist (every item)");
+        return Component.literal("Edit refill whitelist (" + count + (count == 1 ? " item)" : " items)"));
     }
 
     @Override
